@@ -9,7 +9,7 @@
     "icons": [
         {
             "src": "paint.png",
-            "sizes": "512X512",
+            "sizes": "256X256",
             "type": "image/png"
         }
     ]
