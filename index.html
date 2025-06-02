@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kids Paint App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the canvas and overall layout */
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 900px; /* Max width for desktop */
+            min-height: 600px;
+        }
+        #controls {
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+        }
+        #canvas-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            background-color: #e2e8f0; /* Light gray background for canvas area */
+        }
+        canvas {
+            background-color: #ffffff; /* White canvas background */
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            touch-action: none; /* Prevent browser default touch actions like scrolling/zooming */
+            max-width: 100%; /* Ensure canvas scales down on smaller screens */
+            max-height: 100%; /* Ensure canvas scales down on smaller screens */
+            display: block; /* Remove extra space below canvas */
+        }
+
+        /* Style for active tool button */
+        .tool-button.active {
+            background-color: #3b82f6; /* Blue for active state */
+            color: white;
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Custom color picker styling */
+        input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+            overflow: hidden;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 8px;
+        }
+        input[type="color"]::-moz-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-moz-color-swatch {
+            border: none;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container" class="flex flex-col rounded-2xl shadow-xl">
+        <div class="p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-center text-3xl font-bold rounded-t-2xl">
+            🎨 Kids Paint Studio 🖌️
+        </div>
+
+        <div id="controls" class="flex flex-wrap items-center justify-center p-4 bg-gray-50 border-b border-gray-200">
+            <div class="flex items-center space-x-2 bg-white p-2 rounded-xl shadow-sm">
+                <label for="colorPicker" class="text-gray-700 font-medium">Color:</label>
+                <input type="color" id="colorPicker" value="#000000" class="w-10 h-10 rounded-lg cursor-pointer border-2 border-gray-300">
+            </div>
+
+            <div class="flex space-x-2 bg-white p-2 rounded-xl shadow-sm">
+                <button id="penTool" class="tool-button active px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 shadow-md">Pen</button>
+                <button id="pencilTool" class="tool-button px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 transition-all duration-200 shadow-md">Pencil</button>
+                <button id="brushTool" class="tool-button px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 transition-all duration-200 shadow-md">Brush</button>
+            </div>
+
+            <div class="flex items-center space-x-2 bg-white p-2 rounded-xl shadow-sm">
+                <label class="text-gray-700 font-medium">Size:</label>
+                <button id="decreaseSizeBtn" class="px-3 py-1 rounded-lg text-sm font-bold bg-gray-200 text-gray-800 hover:bg-gray-300 transition-all duration-200 shadow-md">-</button>
+                <span id="currentSize" class="text-gray-700 font-medium w-6 text-center">5</span>
+                <button id="increaseSizeBtn" class="px-3 py-1 rounded-lg text-sm font-bold bg-gray-200 text-gray-800 hover:bg-gray-300 transition-all duration-200 shadow-md">+</button>
+            </div>
+
+            <button id="fillColorBtn" class="px-4 py-2 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-all duration-200 shadow-md">Fill Canvas</button>
+
+            <button id="eraserTool" class="tool-button px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all duration-200 shadow-md">Eraser</button>
+
+            <button id="clearCanvasBtn" class="px-4 py-2 rounded-lg text-sm font-medium bg-yellow-500 text-white hover:bg-yellow-600 transition-all duration-200 shadow-md">Clear</button>
+        </div>
+
+        <div id="canvas-container" class="flex-grow flex justify-center items-center p-4 bg-gray-100">
+            <canvas id="paintCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Get references to canvas and context
+        const canvas = document.getElementById('paintCanvas');
+        const context = canvas.getContext('2d');
+
+        // Get references to control elements
+        const colorPicker = document.getElementById('colorPicker');
+        const penTool = document.getElementById('penTool');
+        const pencilTool = document.getElementById('pencilTool');
+        const brushTool = document.getElementById('brushTool');
+        const fillColorBtn = document.getElementById('fillColorBtn');
+        const eraserTool = document.getElementById('eraserTool');
+        const clearCanvasBtn = document.getElementById('clearCanvasBtn');
+        const toolButtons = document.querySelectorAll('.tool-button');
+        const decreaseSizeBtn = document.getElementById('decreaseSizeBtn');
+        const increaseSizeBtn = document.getElementById('increaseSizeBtn');
+        const currentSizeSpan = document.getElementById('currentSize');
+
+
+        // Drawing state variables
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let currentColor = '#000000'; // Default color: black
+        let currentTool = 'pen';     // Default tool: pen
+        let brushSize = 5;           // Default brush size for pen
+
+        /**
+         * Updates the displayed brush size and applies it to the canvas context.
+         */
+        function updateBrushSizeDisplay() {
+            currentSizeSpan.textContent = brushSize;
+            context.lineWidth = brushSize;
+        }
+
+        /**
+         * Initializes the canvas dimensions to fill its container and sets default drawing properties.
+         * Also handles canvas resizing on window resize.
+         */
+        function initializeCanvas() {
+            // Set canvas dimensions based on its container's client dimensions
+            const container = document.getElementById('canvas-container');
+            canvas.width = container.clientWidth * 0.9; // 90% of container width
+            canvas.height = container.clientHeight * 0.9; // 90% of container height
+
+            // Set initial drawing properties
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+            context.strokeStyle = currentColor;
+            updateBrushSizeDisplay(); // Initialize brush size display
+        }
+
+        /**
+         * Clears the entire canvas.
+         */
+        function clearCanvas() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        /**
+         * Sets the active tool and updates styling of tool buttons.
+         * @param {string} toolName - The name of the tool to activate ('pen', 'pencil', 'brush', 'eraser').
+         */
+        function setActiveTool(toolName) {
+            currentTool = toolName;
+            // Reset composite operation for drawing tools
+            context.globalCompositeOperation = 'source-over';
+
+            // Remove 'active' class from all tool buttons
+            toolButtons.forEach(button => button.classList.remove('active', 'bg-blue-500', 'text-white', 'hover:bg-blue-600'));
+            toolButtons.forEach(button => button.classList.add('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300'));
+
+            // Add 'active' class to the selected tool button and set its specific style
+            let activeToolButton;
+            switch (toolName) {
+                case 'pen':
+                    brushSize = 5; // Default pen size
+                    activeToolButton = penTool;
+                    break;
+                case 'pencil':
+                    brushSize = 2; // Default pencil size
+                    activeToolButton = pencilTool;
+                    break;
+                case 'brush':
+                    brushSize = 15; // Default brush size
+                    activeToolButton = brushTool;
+                    break;
+                case 'eraser':
+                    brushSize = 20; // Eraser is typically larger
+                    context.globalCompositeOperation = 'destination-out'; // Erases by making pixels transparent
+                    activeToolButton = eraserTool;
+                    break;
+            }
+            updateBrushSizeDisplay(); // Update brush size display when tool changes
+            if (activeToolButton) {
+                activeToolButton.classList.add('active', 'bg-blue-500', 'text-white', 'hover:bg-blue-600');
+                activeToolButton.classList.remove('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300');
+            }
+        }
+
+        /**
+         * Handles the start of a drawing stroke (mouse down or touch start).
+         * @param {MouseEvent|TouchEvent} e - The event object.
+         */
+        function startDrawing(e) {
+            isDrawing = true;
+            // Get coordinates based on event type (mouse or touch)
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            // Get canvas position relative to viewport
+            const rect = canvas.getBoundingClientRect();
+            lastX = clientX - rect.left;
+            lastY = clientY - rect.top;
+
+            context.beginPath(); // Start a new path for each stroke
+            context.moveTo(lastX, lastY); // Move to the starting point
+        }
+
+        /**
+         * Handles the continuation of a drawing stroke (mouse move or touch move).
+         * @param {MouseEvent|TouchEvent} e - The event object.
+         */
+        function draw(e) {
+            if (!isDrawing) return;
+
+            // Prevent default touch actions like scrolling while drawing
+            e.preventDefault();
+
+            // Get coordinates based on event type (mouse or touch)
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            // Get canvas position relative to viewport
+            const rect = canvas.getBoundingClientRect();
+            const currentX = clientX - rect.left;
+            const currentY = clientY - rect.top;
+
+            // Set stroke style based on current tool and color
+            context.strokeStyle = currentTool === 'eraser' ? 'rgba(0,0,0,1)' : currentColor; // Eraser uses transparent color
+            context.lineWidth = brushSize; // Use the current brush size
+
+            context.lineTo(currentX, currentY); // Draw a line to the current point
+            context.stroke();                   // Apply the stroke
+            context.moveTo(currentX, currentY); // Move the path to the current point for continuous drawing
+
+            lastX = currentX;
+            lastY = currentY;
+        }
+
+        /**
+         * Handles the end of a drawing stroke (mouse up or touch end).
+         */
+        function stopDrawing() {
+            isDrawing = false;
+            context.closePath(); // Close the current path
+        }
+
+        // --- Event Listeners ---
+
+        // Canvas drawing events (mouse)
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing); // Stop drawing if mouse leaves canvas
+
+        // Canvas drawing events (touch)
+        canvas.addEventListener('touchstart', startDrawing, { passive: false }); // passive: false to allow preventDefault
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchcancel', stopDrawing); // Handle touch cancellation
+
+        // Color picker change event
+        colorPicker.addEventListener('input', (e) => {
+            currentColor = e.target.value;
+            if (currentTool !== 'eraser') { // Don't change eraser's 'color'
+                context.strokeStyle = currentColor;
+            }
+        });
+
+        // Tool button click events
+        penTool.addEventListener('click', () => setActiveTool('pen'));
+        pencilTool.addEventListener('click', () => setActiveTool('pencil'));
+        brushTool.addEventListener('click', () => setActiveTool('brush'));
+        eraserTool.addEventListener('click', () => setActiveTool('eraser'));
+
+        // Stroke size control events
+        decreaseSizeBtn.addEventListener('click', () => {
+            if (brushSize > 1) { // Minimum stroke size
+                brushSize -= 1;
+                updateBrushSizeDisplay();
+            }
+        });
+
+        increaseSizeBtn.addEventListener('click', () => {
+            if (brushSize < 50) { // Maximum stroke size
+                brushSize += 1;
+                updateBrushSizeDisplay();
+            }
+        });
+
+        // Fill Canvas button click event
+        fillColorBtn.addEventListener('click', () => {
+            context.fillStyle = currentColor;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        });
+
+        // Clear Canvas button click event
+        clearCanvasBtn.addEventListener('click', clearCanvas);
+
+        // Initialize canvas on window load and handle resizing
+        window.onload = function() {
+            initializeCanvas();
+            // Set initial tool to pen
+            setActiveTool('pen');
+        };
+        window.addEventListener('resize', initializeCanvas); // Re-initialize canvas on window resize
+    </script>
+</body>
+</html>
