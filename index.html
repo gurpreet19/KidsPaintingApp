@@ -12,11 +12,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh; /* Changed to height: 100vh for full screen */
             background-color: #f0f4f8; /* Light blue-gray background */
             margin: 0;
-            padding: 20px;
+            padding: 0; /* Removed padding for full screen */
             box-sizing: border-box;
+            overflow: hidden; /* Prevent scrolling if content overflows */
         }
         #app-container {
             display: flex;
@@ -25,9 +26,10 @@
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             overflow: hidden;
-            width: 100%;
-            max-width: 900px; /* Max width for desktop */
-            min-height: 600px;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            max-width: none; /* Removed max-width constraint */
+            min-height: auto; /* Removed min-height constraint */
         }
         #controls {
             padding: 16px;
@@ -172,8 +174,9 @@
         function initializeCanvas() {
             // Set canvas dimensions based on its container's client dimensions
             const container = document.getElementById('canvas-container');
-            canvas.width = container.clientWidth * 0.9; // 90% of container width
-            canvas.height = container.clientHeight * 0.9; // 90% of container height
+            // Adjust canvas width and height to fill the container perfectly
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
 
             // Set initial drawing properties
             context.lineCap = 'round';
