@@ -196,8 +196,8 @@
         // CLIENT_ID: Replace with your actual Google API Client ID
         // You can get this from the Google Cloud Console (APIs & Services -> Credentials)
         // Make sure to enable the Google Drive API and set authorized JavaScript origins.
-        const CLIENT_ID = '${{CLIENTID}}'; // <<< REPLACE WITH YOUR ACTUAL GOOGLE CLIENT ID >>>
-        const API_KEY = '${{CLIENTSECRET}}';   // <<< REPLACE WITH YOUR ACTUAL GOOGLE API KEY (if needed for other services, not strictly for client-side Drive init) >>>
+        const CLIENT_ID = ${{CLIENTID}}; // <<< REPLACE WITH YOUR ACTUAL GOOGLE CLIENT ID >>>
+        const API_KEY = ${{CLIENTSECRET}};   // <<< REPLACE WITH YOUR ACTUAL GOOGLE API KEY (if needed for other services, not strictly for client-side Drive init) >>>
 
         // Log a warning if CLIENT_ID or API_KEY are still empty
         if (CLIENT_ID === '') {
