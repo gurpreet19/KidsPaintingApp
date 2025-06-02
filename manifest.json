@@ -1,0 +1,16 @@
+{
+    "name": "Kids Paint Studio",
+    "short_name": "Paint App",
+    "description": "A fun and interactive paint application for kids.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f0f4f8",
+    "theme_color": "#3b82f6",
+    "icons": [
+        {
+            "src": "paint.png",
+            "sizes": "512X512",
+            "type": "image/png"
+        }
+    ]
+}
