@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kids Paint App</title>
-    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom styles for the canvas and overall layout */
@@ -13,12 +12,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh; /* Changed to height: 100vh for full screen */
+            height: 100vh;
             background-color: #f0f4f8; /* Light blue-gray background */
             margin: 0;
-            padding: 0; /* Removed padding for full screen */
+            padding: 0;
             box-sizing: border-box;
-            overflow: hidden; /* Prevent scrolling if content overflows */
+            overflow: hidden;
         }
         #app-container {
             display: flex;
@@ -27,10 +26,10 @@
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             overflow: hidden;
-            width: 100%; /* Full width */
-            height: 100%; /* Full height */
-            max-width: none; /* Removed max-width constraint */
-            min-height: auto; /* Removed min-height constraint */
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            min-height: auto;
         }
         #controls {
             padding: 16px;
@@ -54,9 +53,9 @@
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
             touch-action: none; /* Prevent browser default touch actions like scrolling/zooming */
-            max-width: 100%; /* Ensure canvas scales down on smaller screens */
-            max-height: 100%; /* Ensure canvas scales down on smaller screens */
-            display: block; /* Remove extra space below canvas */
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
         }
 
         /* Style for active tool button */
@@ -94,6 +93,46 @@
             border: none;
             border-radius: 8px;
         }
+
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 80%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -126,6 +165,13 @@
             <button id="eraserTool" class="tool-button px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all duration-200 shadow-md">Eraser</button>
 
             <button id="clearCanvasBtn" class="px-4 py-2 rounded-lg text-sm font-medium bg-yellow-500 text-white hover:bg-yellow-600 transition-all duration-200 shadow-md">Clear</button>
+
+            <div class="flex space-x-2 bg-white p-2 rounded-xl shadow-sm">
+                <button id="authorizeButton" class="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-500 text-white hover:bg-indigo-600 transition-all duration-200 shadow-md">Sign In with Google</button>
+                <button id="signoutButton" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-500 text-white hover:bg-gray-600 transition-all duration-200 shadow-md" style="display: none;">Sign Out</button>
+                <button id="saveToDriveBtn" class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 shadow-md" style="display: none;">Save to Drive</button>
+                <button id="loadFromDriveBtn" class="px-4 py-2 rounded-lg text-sm font-medium bg-purple-500 text-white hover:bg-purple-600 transition-all duration-200 shadow-md" style="display: none;">Load from Drive</button>
+            </div>
         </div>
 
         <div id="canvas-container" class="flex-grow flex justify-center items-center p-4 bg-gray-100">
@@ -133,7 +179,38 @@
         </div>
     </div>
 
+    <div id="loadModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2 class="text-xl font-bold mb-4">Load from Google Drive</h2>
+            <div id="fileList" class="max-h-60 overflow-y-auto border rounded-lg p-2">
+                <p>Loading files...</p>
+            </div>
+            <button id="loadSelectedFileBtn" class="mt-4 px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 shadow-md" disabled>Load Selected</button>
+        </div>
+    </div>
+
+    <script async defer src="https://apis.google.com/js/api.js"></script>
+
     <script>
+        // CLIENT_ID: Replace with your actual Google API Client ID
+        // You can get this from the Google Cloud Console (APIs & Services -> Credentials)
+        // Make sure to enable the Google Drive API and set authorized JavaScript origins.
+        const CLIENT_ID = '${{CLIENTID}}'; // <<< REPLACE WITH YOUR ACTUAL GOOGLE CLIENT ID >>>
+        const API_KEY = '${{CLIENTSECRET}}';   // <<< REPLACE WITH YOUR ACTUAL GOOGLE API KEY (if needed for other services, not strictly for client-side Drive init) >>>
+
+        // Log a warning if CLIENT_ID or API_KEY are still empty
+        if (CLIENT_ID === '') {
+            console.warn('WARNING: CLIENT_ID is empty. Please replace it with your actual Google API Client ID from Google Cloud Console.');
+        }
+        if (API_KEY === '') {
+            console.warn('WARNING: API_KEY is empty. Please replace it with your actual Google API Key if you intend to use it for other Google services. For client-side Drive API with OAuth, it might not be strictly necessary, but good practice to have if you have one.');
+        }
+
+
+        const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file'; // Scope to access files created by this app
+
         // Get references to canvas and context
         const canvas = document.getElementById('paintCanvas');
         const context = canvas.getContext('2d');
@@ -151,6 +228,15 @@
         const increaseSizeBtn = document.getElementById('increaseSizeBtn');
         const currentSizeSpan = document.getElementById('currentSize');
 
+        // Google Drive related elements
+        const authorizeButton = document.getElementById('authorizeButton');
+        const signoutButton = document.getElementById('signoutButton');
+        const saveToDriveBtn = document.getElementById('saveToDriveBtn');
+        const loadFromDriveBtn = document.getElementById('loadFromDriveBtn');
+        const loadModal = document.getElementById('loadModal');
+        const closeModalButton = loadModal.querySelector('.close-button');
+        const fileListDiv = document.getElementById('fileList');
+        const loadSelectedFileBtn = document.getElementById('loadSelectedFileBtn');
 
         // Drawing state variables
         let isDrawing = false;
@@ -159,6 +245,9 @@
         let currentColor = '#000000'; // Default color: black
         let currentTool = 'pen';     // Default tool: pen
         let brushSize = 5;           // Default brush size for pen
+
+        let googleAuth; // gapi.auth2.GoogleAuth object
+        let selectedFileId = null; // To store the ID of the file selected for loading
 
         /**
          * Updates the displayed brush size and applies it to the canvas context.
@@ -292,6 +381,255 @@
             context.closePath(); // Close the current path
         }
 
+        // --- Google API Functions ---
+
+        /**
+         * Initializes the Google API client.
+         */
+        function handleClientLoad() {
+            gapi.load('client:auth2', initClient);
+        }
+
+        /**
+         * Initializes the API client and sets up sign-in listeners.
+         */
+        function initClient() {
+            gapi.client.init({
+                apiKey: API_KEY,
+                clientId: CLIENT_ID,
+                discoveryDocs: DISCOVERY_DOCS,
+                scope: SCOPES
+            }).then(() => {
+                googleAuth = gapi.auth2.getAuthInstance();
+                // Listen for sign-in state changes.
+                googleAuth.isSignedIn.listen(updateSigninStatus);
+                // Handle the initial sign-in state.
+                updateSigninStatus(googleAuth.isSignedIn.get());
+            }).catch(error => {
+                console.error('Error initializing Google API client:', error);
+                // Provide user feedback for initialization errors
+                showMessage('Error initializing Google API. Check console for details.');
+            });
+        }
+
+        /**
+         * Updates the UI based on the user's login status.
+         * @param {boolean} isSignedIn - True if the user is signed in, false otherwise.
+         */
+        function updateSigninStatus(isSignedIn) {
+            if (isSignedIn) {
+                authorizeButton.style.display = 'none';
+                signoutButton.style.display = 'block';
+                saveToDriveBtn.style.display = 'block';
+                loadFromDriveBtn.style.display = 'block';
+            } else {
+                authorizeButton.style.display = 'block';
+                signoutButton.style.display = 'none';
+                saveToDriveBtn.style.display = 'none';
+                loadFromDriveBtn.style.display = 'none';
+            }
+        }
+
+        /**
+         * Handles the sign-in button click.
+         */
+        function handleAuthClick() {
+            if (googleAuth) {
+                googleAuth.signIn();
+            } else {
+                console.error('GoogleAuth object not initialized.');
+                showMessage('Google authentication not ready. Please try again.');
+            }
+        }
+
+        /**
+         * Handles the sign-out button click.
+         */
+        function handleSignoutClick() {
+            if (googleAuth) {
+                googleAuth.signOut();
+            } else {
+                console.error('GoogleAuth object not initialized.');
+            }
+        }
+
+        /**
+         * Saves the current canvas content to Google Drive as a PNG image.
+         */
+        async function saveCanvasToDrive() {
+            if (!googleAuth || !googleAuth.isSignedIn.get()) {
+                showMessage('Please sign in to Google to save to Drive.');
+                return;
+            }
+
+            const dataUrl = canvas.toDataURL('image/png');
+            const blob = dataURLtoBlob(dataUrl);
+
+            const fileName = `KidsPaint_${new Date().toISOString().slice(0, 19).replace(/[^0-9]/g, '')}.png`;
+            const fileMetadata = {
+                'name': fileName,
+                'mimeType': 'image/png',
+                'parents': ['appDataFolder'] // Use appDataFolder for private app-specific files
+            };
+
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
+            form.append('file', blob);
+
+            try {
+                showMessage('Saving to Google Drive...');
+                const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                    method: 'POST',
+                    headers: new Headers({'Authorization': 'Bearer ' + googleAuth.currentUser.get().getAuthResponse().access_token}),
+                    body: form
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Failed to save: ${errorData.error.message}`);
+                }
+
+                const file = await response.json();
+                showMessage(`Saved "${file.name}" to Google Drive!`);
+                console.log('File saved:', file);
+            } catch (error) {
+                console.error('Error saving to Google Drive:', error);
+                showMessage(`Error saving to Drive: ${error.message}`);
+            }
+        }
+
+        /**
+         * Converts a data URL to a Blob object.
+         * @param {string} dataurl - The data URL string.
+         * @returns {Blob} The Blob object.
+         */
+        function dataURLtoBlob(dataurl) {
+            const arr = dataurl.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+
+        /**
+         * Loads a list of Kids Paint files from Google Drive and displays them in a modal.
+         */
+        async function loadCanvasFromDrive() {
+            if (!googleAuth || !googleAuth.isSignedIn.get()) {
+                showMessage('Please sign in to Google to load from Drive.');
+                return;
+            }
+
+            fileListDiv.innerHTML = '<p>Loading files...</p>';
+            loadModal.style.display = 'flex'; // Show modal
+
+            try {
+                const response = await gapi.client.drive.files.list({
+                    'spaces': 'appDataFolder',
+                    'fields': 'nextPageToken, files(id, name, createdTime)',
+                    'q': "mimeType='image/png' and name contains 'KidsPaint_'" // Filter for our app's files
+                });
+
+                const files = response.result.files;
+                if (files && files.length > 0) {
+                    fileListDiv.innerHTML = ''; // Clear loading message
+                    files.forEach((file) => {
+                        const fileItem = document.createElement('div');
+                        fileItem.className = 'p-2 border-b border-gray-200 cursor-pointer hover:bg-blue-100 rounded-md';
+                        fileItem.textContent = `${file.name} (Created: ${new Date(file.createdTime).toLocaleDateString()})`;
+                        fileItem.dataset.fileId = file.id;
+                        fileItem.addEventListener('click', () => {
+                            // Deselect previous, select current
+                            const prevSelected = fileListDiv.querySelector('.bg-blue-200');
+                            if (prevSelected) prevSelected.classList.remove('bg-blue-200');
+                            fileItem.classList.add('bg-blue-200');
+                            selectedFileId = file.id;
+                            loadSelectedFileBtn.disabled = false; // Enable load button
+                        });
+                        fileListDiv.appendChild(fileItem);
+                    });
+                } else {
+                    fileListDiv.innerHTML = '<p>No Kids Paint files found in your Google Drive.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading files from Google Drive:', error);
+                fileListDiv.innerHTML = `<p class="text-red-500">Error loading files: ${error.message}</p>`;
+                showMessage(`Error loading files: ${error.message}`);
+            }
+        }
+
+        /**
+         * Downloads the selected image from Google Drive and draws it onto the canvas.
+         */
+        async function downloadAndDrawFile() {
+            if (!selectedFileId) {
+                showMessage('No file selected to load.');
+                return;
+            }
+
+            loadModal.style.display = 'none'; // Hide modal
+            showMessage('Loading image...');
+
+            try {
+                const response = await gapi.client.drive.files.get({
+                    fileId: selectedFileId,
+                    alt: 'media' // Request file content
+                });
+
+                if (response.status === 200) {
+                    const imageUrl = URL.createObjectURL(response.body);
+                    const img = new Image();
+                    img.onload = () => {
+                        clearCanvas(); // Clear current canvas before drawing new image
+                        // Draw image to fit canvas, maintaining aspect ratio
+                        const hRatio = canvas.width / img.width;
+                        const vRatio = canvas.height / img.height;
+                        const ratio = Math.min(hRatio, vRatio);
+                        const centerShiftX = (canvas.width - img.width * ratio) / 2;
+                        const centerShiftY = (canvas.height - img.height * ratio) / 2;
+                        context.drawImage(img, 0, 0, img.width, img.height,
+                                          centerShiftX, centerShiftY, img.width * ratio, img.height * ratio);
+                        URL.revokeObjectURL(imageUrl); // Clean up URL object
+                        showMessage('Image loaded successfully!');
+                    };
+                    img.onerror = () => {
+                        showMessage('Failed to load image from URL.');
+                        URL.revokeObjectURL(imageUrl);
+                    };
+                    img.src = imageUrl;
+                } else {
+                    throw new Error(`Failed to download file: Status ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error downloading file from Google Drive:', error);
+                showMessage(`Error loading image: ${error.message}`);
+            } finally {
+                selectedFileId = null; // Reset selected file
+                loadSelectedFileBtn.disabled = true; // Disable load button
+            }
+        }
+
+        /**
+         * Displays a temporary message to the user.
+         * @param {string} message - The message to display.
+         * @param {number} duration - Duration in milliseconds (default 3000).
+         */
+        function showMessage(message, duration = 3000) {
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = message;
+            messageDiv.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity duration-300';
+            document.body.appendChild(messageDiv);
+
+            setTimeout(() => {
+                messageDiv.style.opacity = '0';
+                messageDiv.addEventListener('transitionend', () => messageDiv.remove());
+            }, duration);
+        }
+
         // --- Event Listeners ---
 
         // Canvas drawing events (mouse)
@@ -344,26 +682,37 @@
         // Clear Canvas button click event
         clearCanvasBtn.addEventListener('click', clearCanvas);
 
+        // Google Drive integration event listeners
+        authorizeButton.addEventListener('click', handleAuthClick);
+        signoutButton.addEventListener('click', handleSignoutClick);
+        saveToDriveBtn.addEventListener('click', saveCanvasToDrive);
+        loadFromDriveBtn.addEventListener('click', loadCanvasFromDrive);
+
+        // Modal event listeners
+        closeModalButton.addEventListener('click', () => {
+            loadModal.style.display = 'none';
+            selectedFileId = null; // Reset selection on close
+            loadSelectedFileBtn.disabled = true;
+        });
+        window.addEventListener('click', (event) => {
+            if (event.target == loadModal) {
+                loadModal.style.display = 'none';
+                selectedFileId = null; // Reset selection on close
+                loadSelectedFileBtn.disabled = true;
+            }
+        });
+        loadSelectedFileBtn.addEventListener('click', downloadAndDrawFile);
+
+
         // Initialize canvas on window load and handle resizing
         window.onload = function() {
             initializeCanvas();
             // Set initial tool to pen
             setActiveTool('pen');
+            // Load Google API client after the window loads
+            handleClientLoad();
         };
         window.addEventListener('resize', initializeCanvas); // Re-initialize canvas on window resize
-
-        // Register the Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
-                    .then(registration => {
-                        console.log('Service Worker registered with scope:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.error('Service Worker registration failed:', error);
-                    });
-            });
-        }
     </script>
 </body>
 </html>
